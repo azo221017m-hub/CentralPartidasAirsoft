@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import FichaJugador from '../components/FichaJugador'
+import { getTeamById, updateTeam, getForumByTeam, getForumPosts, createForumPost, getPlayersByTeam } from '../services/supabaseService'
 
 export default function Foro() {
   const { equipoId } = useParams()
@@ -14,25 +15,36 @@ export default function Foro() {
   const [mensaje, setMensaje] = useState('')
 
   useEffect(() => {
-    const equipos = JSON.parse(localStorage.getItem('equipos') || '[]')
-    const eq = equipos.find(e => e.id === equipoId)
-    setEquipo(eq || null)
+    let mounted = true
+    async function load() {
+      const { data: eq } = await getTeamById(equipoId)
+      if (!mounted) return
+      setEquipo(eq || null)
+      // cargar jugadores
+      const { data: players } = await getPlayersByTeam(equipoId)
+      if (players) {
+        setEquipo(prev => ({ ...prev, integrantes: players }))
+      }
 
-    const session = JSON.parse(localStorage.getItem(`foro_session_${equipoId}`) || 'null')
-    if (session) {
-      setAutenticado(true)
-      setRolUsuario(session.rol)
+      // Cargar foro y posts opcionalmente
+      const { data: forum } = await getForumByTeam(equipoId)
+      if (forum) {
+        const { data: posts } = await getForumPosts(forum.id)
+        if (posts) setEquipo(prev => ({ ...(prev || {}), noticias: posts }))
+      }
     }
+    load()
+    return () => { mounted = false }
   }, [equipoId])
 
-  const actualizarEquipo = (nuevoEquipo) => {
-    const equipos = JSON.parse(localStorage.getItem('equipos') || '[]')
-    const idx = equipos.findIndex(e => e.id === equipoId)
-    if (idx !== -1) {
-      equipos[idx] = nuevoEquipo
-      localStorage.setItem('equipos', JSON.stringify(equipos))
-      setEquipo(nuevoEquipo)
+  const actualizarEquipo = async (nuevoEquipo) => {
+    // Actualiza en DB y estado local
+    const { data, error } = await updateTeam(equipoId, nuevoEquipo)
+    if (error) {
+      console.error('Error actualizando equipo', error)
+      return
     }
+    setEquipo(data || nuevoEquipo)
   }
 
   const autenticar = (rol) => {
@@ -40,7 +52,7 @@ export default function Foro() {
     if (password === correctas[rol]) {
       setAutenticado(true)
       setRolUsuario(rol)
-      localStorage.setItem(`foro_session_${equipoId}`, JSON.stringify({ rol }))
+      // sesión local sólo para demo
       setPassword('')
       setMensaje('')
     } else {
@@ -54,46 +66,36 @@ export default function Foro() {
     localStorage.removeItem(`foro_session_${equipoId}`)
   }
 
-  const toggleForoPublico = () => {
-    const actualizado = { ...equipo, foroPublico: !equipo.foroPublico }
-    actualizarEquipo(actualizado)
+  const toggleForoPublico = async () => {
+    const actualizado = { is_public_forum: !equipo.foroPublico, foroPublico: !equipo.foroPublico }
+    await actualizarEquipo(actualizado)
   }
 
-  const publicarNoticia = () => {
+  const publicarNoticia = async () => {
     if (!tituloNoticia.trim() || !nuevaNoticia.trim()) return
-    const noticia = {
-      id: Date.now(),
-      titulo: tituloNoticia,
-      contenido: nuevaNoticia,
-      autor: rolUsuario === 'lider' ? 'Líder' : '2do al Mando',
-      fecha: new Date().toLocaleDateString('es-MX'),
+    // Crear post en foro si existe
+    try {
+      const { data: forum } = await getForumByTeam(equipoId)
+      if (forum) {
+        await createForumPost({ forum_id: forum.id, author_id: null, title: tituloNoticia, content: nuevaNoticia })
+      }
+      setNuevaNoticia('')
+      setTituloNoticia('')
+      setMostrarFormNoticia(false)
+    } catch (err) {
+      console.error('Error publicando noticia', err)
     }
-    const actualizado = {
-      ...equipo,
-      noticias: [...(equipo.noticias || []), noticia],
-    }
-    actualizarEquipo(actualizado)
-    setNuevaNoticia('')
-    setTituloNoticia('')
-    setMostrarFormNoticia(false)
   }
 
-  const eliminarNoticia = (id) => {
-    const actualizado = {
-      ...equipo,
-      noticias: equipo.noticias.filter(n => n.id !== id),
-    }
-    actualizarEquipo(actualizado)
+  const eliminarNoticia = async (id) => {
+    // Remover noticia: si usas foro_posts, deberías usar supabase para eliminar. Aquí sólo actualizamos estado local si existiera.
+    const actualizado = { ...(equipo || {}), noticias: (equipo.noticias || []).filter(n => n.id !== id) }
+    await actualizarEquipo(actualizado)
   }
 
-  const toggleVisibilidadJugador = (jugadorId) => {
-    const actualizado = {
-      ...equipo,
-      integrantes: equipo.integrantes.map(j =>
-        j.id === jugadorId ? { ...j, visible: !j.visible } : j
-      ),
-    }
-    actualizarEquipo(actualizado)
+  const toggleVisibilidadJugador = async (jugadorId) => {
+    const actualizado = { ...(equipo || {}), integrantes: (equipo.integrantes || []).map(j => j.id === jugadorId ? { ...j, visible: !j.visible } : j) }
+    await actualizarEquipo(actualizado)
   }
 
   if (!equipo) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { getGameById, getTeams, updateGame, getRegistrationsByGame, getParticipantsByRegistration } from '../services/supabaseService'
 
 const estadoColor = {
   'Completado': 'bg-green-900 text-green-300',
@@ -13,24 +14,47 @@ export default function DetallePartida() {
   const { partidaId } = useParams()
   const [partida, setPartida] = useState(null)
   const [equipos, setEquipos] = useState([])
+  const [equiposParticipantes, setEquiposParticipantes] = useState([])
 
   useEffect(() => {
-    const partidas = JSON.parse(localStorage.getItem('partidas') || '[]')
-    const p = partidas.find(p => p.id === partidaId)
-    setPartida(p || null)
-
-    const eqs = JSON.parse(localStorage.getItem('equipos') || '[]')
-    setEquipos(eqs)
+    let mounted = true
+    async function load() {
+      const { data: gameData } = await getGameById(partidaId)
+      const { data: teamsData } = await getTeams()
+      if (!mounted) return
+      setPartida(gameData || null)
+      setEquipos(teamsData || [])
+    }
+    load()
+    return () => { mounted = false }
   }, [partidaId])
 
-  const actualizarEstado = (field, value) => {
-    const partidas = JSON.parse(localStorage.getItem('partidas') || '[]')
-    const idx = partidas.findIndex(p => p.id === partidaId)
-    if (idx !== -1) {
-      partidas[idx][field] = value
-      localStorage.setItem('partidas', JSON.stringify(partidas))
-      setPartida({ ...partidas[idx] })
+  useEffect(() => {
+    let mounted = true
+    async function loadRegs() {
+      const { data: regs } = await getRegistrationsByGame(partidaId)
+      if (!mounted) return
+      if (!regs) return setEquiposParticipantes([])
+      // Para cada registro, obtener participantes
+      const detailed = []
+      for (const r of regs) {
+        const { data: parts } = await getParticipantsByRegistration(r.id)
+        detailed.push({ ...r, participantes: parts || [] })
+      }
+      setEquiposParticipantes(detailed)
     }
+    loadRegs()
+    return () => { mounted = false }
+  }, [partidaId])
+
+  const actualizarEstado = async (field, value) => {
+    // Actualiza la partida en Supabase
+    const { data, error } = await updateGame(partidaId, { [field]: value })
+    if (error) {
+      console.error('Error actualizando partida', error)
+      return
+    }
+    setPartida(data || null)
   }
 
   if (!partida) {
@@ -48,8 +72,7 @@ export default function DetallePartida() {
   const misiones = [1, 2, 3, 4, 5].filter(n => partida[`mision${n}`])
   const estadosOpciones = ['Pendiente', 'En Progreso', 'Completado', 'Fallido', 'Cancelado']
 
-  const equiposParticipantes = JSON.parse(localStorage.getItem('registros_partida') || '[]')
-    .filter(r => r.partidaId === partidaId)
+  
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import FichaJugador from '../components/FichaJugador'
+import { createTeam, createPlayer } from '../services/supabaseService'
 
 const defaultJugador = {
   nombre: '',
@@ -89,7 +90,7 @@ export default function RegistroEquipo() {
     setIntegrantes(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const guardarEquipo = () => {
+  const guardarEquipo = async () => {
     if (!nombre.trim()) {
       setMensaje('Por favor ingresa el nombre del equipo.')
       return
@@ -99,23 +100,38 @@ export default function RegistroEquipo() {
       return
     }
 
-    const equipo = {
-      id: Date.now().toString(),
-      nombre,
-      logo,
-      fotoEquipo,
-      integrantes,
-      foroPublico: false,
-      noticias: [],
-      creadoEn: new Date().toISOString(),
+    setMensaje('Guardando equipo...')
+
+    const { data: teamData, error: teamError } = await createTeam({
+      name: nombre,
+      logo_url: logo,
+      team_photo_url: fotoEquipo,
+      is_public_forum: false
+    })
+
+    if (teamError || !teamData) {
+      console.error('Error creando equipo:', teamError)
+      setMensaje('Error registrando el equipo. Revisa la consola.')
+      return
     }
 
-    const equipos = JSON.parse(localStorage.getItem('equipos') || '[]')
-    equipos.push(equipo)
-    localStorage.setItem('equipos', JSON.stringify(equipos))
+    // Crear jugadores y asociarlos al equipo en la base de datos
+    const teamId = teamData.team?.id || teamData.id || null
+    for (const j of integrantes) {
+      const nickname = j.sobrenombre?.trim() || j.nombre?.trim() || 'Jugador'
+      await createPlayer({
+        nickname,
+        avatar_url: j.avatar || null,
+        assault_skill: Number(j.habilidadAsalto) || 0,
+        scout_skill: Number(j.habilidadExplorador) || 0,
+        rear_guard_skill: Number(j.habilidadRetaguardia) || 0,
+        experience: 0,
+        team_id: teamId
+      })
+    }
 
     setMensaje('✅ Equipo registrado exitosamente!')
-    setTimeout(() => navigate(`/foro/${equipo.id}`), 1500)
+    setTimeout(() => navigate(`/foro/${teamId}`), 1500)
   }
 
   const experiencias = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Veterano']

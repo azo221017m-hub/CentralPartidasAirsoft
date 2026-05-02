@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getTeams, createGame, addGameObjective } from '../services/supabaseService'
 
 const estadosOpciones = ['Pendiente', 'En Progreso', 'Completado', 'Fallido', 'Cancelado']
 
@@ -25,8 +26,14 @@ export default function CrearPartida() {
   })
 
   useEffect(() => {
-    const eq = JSON.parse(localStorage.getItem('equipos') || '[]')
-    setEquipos(eq)
+    let mounted = true
+    async function load() {
+      const { data: teamsData } = await getTeams()
+      if (!mounted) return
+      setEquipos(teamsData || [])
+    }
+    load()
+    return () => { mounted = false }
   }, [])
 
   const setField = (field, value) => setForm(f => ({ ...f, [field]: value }))
@@ -38,20 +45,34 @@ export default function CrearPartida() {
       setMensaje('Por favor completa los campos requeridos: Título, Fecha y Dinámica.')
       return
     }
+    ;(async () => {
+      setMensaje('Creando partida...')
+      const { data: gameData, error: gameError } = await createGame({
+        created_by: null,
+        team_id: form.equipoOrganizador || null,
+        title: form.titulo,
+        date: form.fecha,
+        game_mode: form.dinamica,
+        status: form.estado || 'activa'
+      })
 
-    const partida = {
-      id: Date.now().toString(),
-      ...form,
-      equiposParticipantes: [],
-      creadoEn: new Date().toISOString(),
-    }
+      if (gameError || !gameData) {
+        console.error('Error creando partida', gameError)
+        setMensaje('Error creando la partida. Revisa la consola.')
+        return
+      }
 
-    const partidas = JSON.parse(localStorage.getItem('partidas') || '[]')
-    partidas.push(partida)
-    localStorage.setItem('partidas', JSON.stringify(partidas))
+      const gameId = gameData.id || gameData.game?.id
+      // Añadir objetivo principal y misiones
+      if (form.objetivo) await addGameObjective(gameId, { type: 'objective', description: form.objetivo, status: form.objetivoEstado, score: 0 })
+      for (let n = 1; n <= 5; n++) {
+        const m = form[`mision${n}`]
+        if (m) await addGameObjective(gameId, { type: `mission${n}`, description: m, status: form[`mision${n}Estado`] || 'pending', score: 0 })
+      }
 
-    setMensaje('✅ Partida creada exitosamente!')
-    setTimeout(() => navigate(`/partida/${partida.id}`), 1500)
+      setMensaje('\u2705 Partida creada exitosamente!')
+      setTimeout(() => navigate(`/partida/${gameId}`), 1500)
+    })()
   }
 
   return (

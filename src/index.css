@@ -2,8 +2,139 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fuentes oficiales del brandbook CPA - Squadron + Rajdhani */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+/* Aproximación a Squadron con Orbitron como fallback */
+
+/* Variables CSS oficiales del brandbook Central de Partidas Airsoft */
+:root {
+  --cpa-primary: #485D2A;       /* Verde militar principal */
+  --cpa-secondary: #2E3A1E;     /* Verde más oscuro */
+  --cpa-dark: #111214;          /* Negro principal */
+  --cpa-gray: #2A2D31;          /* Gris medio */
+  --cpa-sand: #D6C8AA;          /* Arena/beige */
+  --cpa-white: #FFFFFF;         /* Blanco puro */
+  
+  /* Variables de compatibilidad */
+  --color-primary: #485D2A;     
+  --color-secondary: #2E3A1E;   
+  --color-dark: #111214;        
+  --color-gray: #2A2D31;        
+  --color-text-light: #FFFFFF;  
+  --color-text-dim: #D6C8AA;    
+}
+
 body {
-  background-color: #0a0a0a;
-  color: #e0d09a;
-  font-family: 'Courier New', monospace;
+  background: linear-gradient(135deg, var(--cpa-dark) 0%, var(--cpa-secondary) 50%, var(--cpa-primary) 100%);
+  color: var(--cpa-white);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  background-attachment: fixed;
+}
+
+/* Tipografía oficial del brandbook */
+.font-squadron {
+  font-family: 'Orbitron', monospace; /* Aproximación a Squadron */
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.font-military {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.font-tactical {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 500;
+}
+
+/* Efectos de brillo con colores del brandbook oficial */
+.glow-cpa {
+  box-shadow: 0 0 20px rgba(72, 93, 42, 0.4);
+}
+
+.glow-green {
+  box-shadow: 0 0 20px rgba(72, 93, 42, 0.3);
+}
+
+.glow-sand {
+  box-shadow: 0 0 15px rgba(214, 200, 170, 0.2);
+}
+
+/* Patrón de fondo táctico con colores oficiales */
+.bg-tactical-pattern {
+  background-image: 
+    radial-gradient(circle at 25% 25%, var(--cpa-primary) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, var(--cpa-primary) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.08;
+}
+
+/* Clases de utilidad para el brandbook */
+.cpa-gradient {
+  background: linear-gradient(135deg, var(--cpa-dark) 0%, var(--cpa-secondary) 50%, var(--cpa-primary) 100%);
+}
+
+.text-cpa-primary { color: var(--cpa-primary); }
+.text-cpa-secondary { color: var(--cpa-secondary); }
+.text-cpa-sand { color: var(--cpa-sand); }
+.text-cpa-white { color: var(--cpa-white); }
+.bg-cpa-dark { background-color: var(--cpa-dark); }
+.bg-cpa-primary { background-color: var(--cpa-primary); }
+
+/* Animaciones militares */
+.military-pulse {
+  animation: military-pulse 2s infinite;
+}
+
+@keyframes military-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+/* Efecto de logo especial para header */
+.logo-header-effect {
+  position: relative;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo-header-effect:hover {
+  animation: logo-rotation 1s ease-in-out;
+}
+
+@keyframes logo-rotation {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(5deg); }
+  50% { transform: scale(1.2) rotate(-5deg); }
+  75% { transform: scale(1.1) rotate(3deg); }
+  100% { transform: scale(1.25) rotate(0deg); }
+}
+
+/* Efecto de brillo pulsante */
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse {
+  from {
+    box-shadow: 
+      0 0 20px rgba(72, 93, 42, 0.4),
+      0 0 40px rgba(72, 93, 42, 0.2),
+      inset 0 0 20px rgba(72, 93, 42, 0.1);
+  }
+  to {
+    box-shadow: 
+      0 0 30px rgba(72, 93, 42, 0.8),
+      0 0 60px rgba(72, 93, 42, 0.4),
+      inset 0 0 30px rgba(72, 93, 42, 0.2);
+  }
 }

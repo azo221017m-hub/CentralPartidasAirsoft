@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getGames, getTeams, registerTeamToGame, addParticipantToRegistration } from '../services/supabaseService'
 
 const defaultIntegrante = {
   nombre: '',
@@ -24,10 +25,16 @@ export default function RegistroPartida() {
   })
 
   useEffect(() => {
-    const p = JSON.parse(localStorage.getItem('partidas') || '[]')
-    const e = JSON.parse(localStorage.getItem('equipos') || '[]')
-    setPartidas(p)
-    setEquipos(e)
+    let mounted = true
+    async function load() {
+      const { data: gamesData } = await getGames()
+      const { data: teamsData } = await getTeams()
+      if (!mounted) return
+      setPartidas(gamesData || [])
+      setEquipos(teamsData || [])
+    }
+    load()
+    return () => { mounted = false }
   }, [])
 
   const setField = (field, value) => setForm(f => ({ ...f, [field]: value }))
@@ -81,19 +88,22 @@ export default function RegistroPartida() {
       return
     }
 
-    const registro = {
-      id: Date.now().toString(),
-      ...form,
-      creadoEn: new Date().toISOString(),
-      confirmado: false,
-    }
+    ;(async () => {
+      setMensaje('Enviando registro...')
+      const { data: regData, error: regError } = await registerTeamToGame({ game_id: form.partidaId, team_id: form.equipoId, status: form.confirmacion ? 'confirmed' : 'pending' })
+      if (regError || !regData) {
+        console.error('Error registrando equipo a partida', regError)
+        setMensaje('Error registrando equipo. Revisa la consola.')
+        return
+      }
 
-    const registros = JSON.parse(localStorage.getItem('registros_partida') || '[]')
-    registros.push(registro)
-    localStorage.setItem('registros_partida', JSON.stringify(registros))
+      for (const int of form.integrantes) {
+        await addParticipantToRegistration(regData.id, { player_name: int.nombre, team_name: int.equipo || form.nombreEquipo, payment_proof_url: int.evidenciaPago || null, privacy_notice_accepted: !!int.avisoPriva, confirmation_status: int.confirmado ? 'confirmed' : 'pending' })
+      }
 
-    setMensaje('✅ Registro enviado exitosamente!')
-    setTimeout(() => navigate(`/partida/${form.partidaId}`), 1500)
+      setMensaje('✅ Registro enviado exitosamente!')
+      setTimeout(() => navigate(`/partida/${form.partidaId}`), 1500)
+    })()
   }
 
   return (

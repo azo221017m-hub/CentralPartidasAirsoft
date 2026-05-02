@@ -1,53 +1,124 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import LoginForm from './LoginForm'
+import LogoOficial from './LogoOficial'
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [user, setUser] = useState(null)
   const location = useLocation()
 
-  const links = [
+  // Links base que siempre se muestran
+  const publicLinks = [
     { to: '/', label: 'Inicio' },
+  ]
+
+  // Links que solo se muestran cuando está autenticado
+  const privateLinks = [
     { to: '/registro-equipo', label: 'Registrar Equipo' },
     { to: '/crear-partida', label: 'Crear Partida' },
     { to: '/registro-partida', label: 'Registrar en Partida' },
   ]
 
+  // Combinar links según el estado de autenticación
+  const links = authenticated ? [...publicLinks, ...privateLinks] : publicLinks
+
+  const handleLoginSuccess = (userData) => {
+    setAuthenticated(true)
+    setUser(userData)
+  }
+
+  const handleLogout = () => {
+    setAuthenticated(false)
+    setUser(null)
+  }
+
   return (
-    <nav className="bg-tactical-darkgreen border-b-2 border-tactical-orange">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-tactical-orange rounded-full flex items-center justify-center">
-              <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-                <circle cx="20" cy="20" r="18" stroke="#1a2e1a" strokeWidth="2"/>
-                <path d="M20 5 L23 15 L34 15 L25 21 L28 32 L20 26 L12 32 L15 21 L6 15 L17 15 Z" fill="#1a2e1a"/>
-              </svg>
-            </div>
-            <div>
-              <div className="text-tactical-orange font-bold text-sm leading-tight">CENTRAL PARTIDAS</div>
-              <div className="text-tactical-sand text-xs leading-tight">AIRSOFT MÉXICO</div>
+    <nav className="bg-gradient-to-r from-cpa-dark to-cpa-gray border-b-2 border-cpa-primary shadow-2xl relative overflow-hidden">
+      {/* Patrón de fondo táctico */}
+      <div className="absolute inset-0 bg-tactical-pattern"></div>
+      
+      <div className="max-w-7xl mx-auto px-4 relative z-10">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo y título principal con efectos mejorados */}
+          <Link to="/" className="flex items-center gap-4 group">
+            <LogoOficial 
+              size="md" 
+              className="logo-header-effect glow-pulse transition-all duration-500 group-hover:scale-125 military-pulse hover:animate-none" 
+            />
+            <div className="flex flex-col">
+              <div className="font-squadron text-cpa-primary text-xl leading-tight tracking-wider transition-all duration-300 group-hover:text-cpa-sand group-hover:scale-105 group-hover:glow-cpa">
+                CENTRAL PARTIDAS
+              </div>
+              <div className="font-tactical text-cpa-sand text-sm leading-tight tracking-widest transition-all duration-300 group-hover:text-cpa-primary">
+                — AIRSOFT MÉXICO —
+              </div>
             </div>
           </Link>
 
-          <div className="hidden md:flex items-center gap-1">
+          {/* Navegación desktop */}
+          <div className="hidden lg:flex items-center gap-2">
             {links.map(link => (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`px-3 py-2 text-sm font-bold uppercase tracking-wide transition-colors ${
+                className={`px-4 py-2 font-tactical text-sm font-semibold uppercase tracking-wide transition-all duration-300 rounded-lg border border-transparent ${
                   location.pathname === link.to
-                    ? 'text-tactical-orange border-b-2 border-tactical-orange'
-                    : 'text-tactical-sand hover:text-tactical-orange'
+                    ? 'bg-cpa-primary text-cpa-white border-cpa-sand shadow-lg glow-cpa'
+                    : 'text-cpa-white hover:text-cpa-primary hover:bg-cpa-gray hover:border-cpa-primary/30'
                 }`}
               >
-                {link.label}
+                <span className="flex items-center gap-2">
+                  {link.label}
+                  {location.pathname === link.to && (
+                    <div className="w-1 h-1 bg-cpa-white rounded-full"></div>
+                  )}
+                </span>
               </Link>
             ))}
+            
+            {/* Separador */}
+            <div className="w-px h-8 bg-cpa-primary/30 mx-4"></div>
+            
+            {/* Área de autenticación */}
+            <div className="flex items-center gap-3">
+              {authenticated ? (
+                <>
+                  <div className="flex items-center gap-2 bg-cpa-gray px-3 py-2 rounded-lg border border-cpa-primary/30">
+                    <div className="w-2 h-2 bg-cpa-primary rounded-full animate-pulse"></div>
+                    <span className="font-tactical text-cpa-sand text-sm font-medium">
+                      {user?.contact_name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-cpa-secondary hover:bg-cpa-secondary/80 text-cpa-white font-tactical font-semibold px-4 py-2 rounded-lg uppercase text-xs tracking-wide transition-all duration-300"
+                  >
+                    Salir a Base
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowLogin(true)}
+                  className="bg-gradient-to-r from-cpa-primary to-cpa-secondary hover:from-cpa-secondary hover:to-cpa-primary text-cpa-white font-squadron font-bold px-6 py-3 rounded-lg uppercase text-sm tracking-wider transition-all duration-300 glow-cpa transform hover:scale-105"
+                >
+                  <span className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    ZONA DE ACCESO 
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
+          {/* Botón hamburguesa móvil */}
           <button
             onClick={() => setOpen(!open)}
-            className="md:hidden text-tactical-sand hover:text-tactical-orange p-2"
+            className="lg:hidden relative z-20 p-3 rounded-lg bg-ops-gray border border-ops-primary/30 text-ops-text-light hover:text-ops-primary hover:bg-ops-primary/10 transition-all duration-300"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {open
@@ -58,21 +129,74 @@ export default function Navbar() {
           </button>
         </div>
 
+        {/* Navegación móvil */}
         {open && (
-          <div className="md:hidden pb-3 border-t border-tactical-green">
-            {links.map(link => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onClick={() => setOpen(false)}
-                className="block px-3 py-2 text-sm font-bold uppercase tracking-wide text-tactical-sand hover:text-tactical-orange"
-              >
-                {link.label}
-              </Link>
-            ))}
+          <div className="lg:hidden absolute top-full left-0 right-0 bg-gradient-to-b from-ops-dark-gray to-ops-dark border-b-2 border-ops-primary shadow-2xl z-50">
+            <div className="px-4 py-6 space-y-4">
+              {links.map(link => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setOpen(false)}
+                  className={`block px-4 py-3 font-tactical font-semibold uppercase tracking-wide transition-all duration-300 rounded-lg ${
+                    location.pathname === link.to
+                      ? 'bg-ops-primary text-ops-dark'
+                      : 'text-ops-text-light hover:text-ops-primary hover:bg-ops-gray'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              
+              {/* Separador móvil */}
+              <div className="border-t border-ops-primary/30 pt-4 mt-4">
+                {authenticated ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-ops-gray rounded-lg border border-ops-primary/30">
+                      <div className="w-3 h-3 bg-ops-primary rounded-full animate-pulse"></div>
+                      <span className="font-tactical text-ops-text-light font-medium">
+                        {user?.contact_name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleLogout()
+                        setOpen(false)
+                      }}
+                      className="w-full bg-ops-orange hover:bg-ops-orange/80 text-white font-tactical font-semibold px-4 py-3 rounded-lg uppercase text-sm tracking-wide transition-all duration-300"
+                    >
+                      Salir a Base
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowLogin(true)
+                      setOpen(false)
+                    }}
+                    className="w-full bg-gradient-to-r from-ops-primary to-ops-accent text-ops-dark font-tactical font-bold px-6 py-4 rounded-lg uppercase text-sm tracking-wider transition-all duration-300"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Acceso Táctico
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Modal de Login */}
+      {showLogin && (
+        <LoginForm 
+          onClose={() => setShowLogin(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
     </nav>
   )
 }
