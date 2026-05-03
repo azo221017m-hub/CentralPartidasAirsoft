@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
-import RegistroEquipo from './pages/RegistroEquipo'
+import ContinuarRegistro from './pages/ContinuarRegistro'
 import Foro from './pages/Foro'
 import CrearPartida from './pages/CrearPartida'
 import DetallePartida from './pages/DetallePartida'
@@ -13,7 +13,7 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/registro-equipo" element={<RegistroEquipo />} />
+        <Route path="/registro-equipo" element={<ContinuarRegistro />} />
         <Route path="/foro/:equipoId" element={<Foro />} />
         <Route path="/crear-partida" element={<CrearPartida />} />
         <Route path="/partida/:partidaId" element={<DetallePartida />} />

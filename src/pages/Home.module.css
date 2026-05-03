@@ -1,6 +1,5 @@
-/* Estilos específicos para el fondo de Home */
+/* Estilos específicos para el fondo de Home - SIN opacidad */
 .home-background {
-  background-image: linear-gradient(rgba(17, 18, 20, 0.4), rgba(17, 18, 20, 0.7));
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -14,7 +13,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('/src/assets/fondocpa.JPG');
+  background-image: url('/src/assets/fondocpa.PNG');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

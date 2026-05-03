@@ -17,22 +17,45 @@ export default function Navbar() {
 
   // Links que solo se muestran cuando está autenticado
   const privateLinks = [
-    { to: '/registro-equipo', label: 'Registrar Equipo' },
     { to: '/crear-partida', label: 'Crear Partida' },
     { to: '/registro-partida', label: 'Registrar en Partida' },
   ]
 
+  // Función para verificar si debe mostrar "Continuar Registro"
+  const shouldShowContinueRegistration = () => {
+    if (!authenticated || !user) return false
+    
+    // Mostrar si las habilidades y experiencia están en 0
+    return user.assault_skill === 0 && 
+           user.scout_skill === 0 && 
+           user.rear_guard_skill === 0 && 
+           user.experience === 0
+  }
+
+  // Links dinámicos según el estado del usuario
+  const conditionalLinks = shouldShowContinueRegistration() ? 
+    [{ to: '/registro-equipo', label: 'Continuar Registro' }] : []
+
+  // Si "Continuar Registro" es visible, ocultar "Crear Partida" y "Registrar en Partida"
+  const availablePrivateLinks = shouldShowContinueRegistration() ? [] : privateLinks
+
   // Combinar links según el estado de autenticación
-  const links = authenticated ? [...publicLinks, ...privateLinks] : publicLinks
+  const links = authenticated ? 
+    [...publicLinks, ...conditionalLinks, ...availablePrivateLinks] : publicLinks
 
   const handleLoginSuccess = (userData) => {
     setAuthenticated(true)
     setUser(userData)
+    setShowLogin(false) // Cerrar modal de login
   }
 
   const handleLogout = () => {
     setAuthenticated(false)
     setUser(null)
+    // Limpiar localStorage
+    localStorage.removeItem('currentUser')
+    // Redirigir a home
+    window.location.href = '/'
   }
 
   return (

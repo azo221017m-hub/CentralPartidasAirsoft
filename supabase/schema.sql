@@ -31,9 +31,14 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE TABLE IF NOT EXISTS players (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid,
   nickname text NOT NULL,
   avatar_url text,
+  contraseña text NOT NULL,
+  tipo_jugador text,
+  equipo text,
+  telefonojugador text,
+  zonadejuego text,
+  nombrecompleto text,
   assault_skill integer DEFAULT 0,
   scout_skill integer DEFAULT 0,
   rear_guard_skill integer DEFAULT 0,

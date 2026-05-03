@@ -73,7 +73,12 @@ export default function FichaJugador({ jugador, onToggleVisible, canEdit }) {
       </div>
 
       <div className="flex justify-between text-xs border-t border-tactical-olive pt-2">
-        <span className="text-tactical-sand">Experiencia: <span className="text-tactical-orange font-bold">{jugador.experiencia || 'Novato'}</span></span>
+        <div className="text-tactical-sand">
+          <div>Experiencia: <span className="text-tactical-orange font-bold">{jugador.experiencia || 'Novato'}</span></div>
+          {jugador.tipo_jugador && (
+            <div className="mt-1">Tipo: <span className="text-tactical-orange font-bold">{jugador.tipo_jugador}</span></div>
+          )}
+        </div>
         <span className="text-tactical-sand">Equipo: <span className="text-tactical-orange font-bold">{jugador.equipo || '-'}</span></span>
       </div>
     </div>

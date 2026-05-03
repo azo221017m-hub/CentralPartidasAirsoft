@@ -1,10 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Fuentes oficiales del brandbook CPA - Squadron + Rajdhani */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
 /* Aproximación a Squadron con Orbitron como fallback */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Variables CSS oficiales del brandbook Central de Partidas Airsoft */
 :root {
