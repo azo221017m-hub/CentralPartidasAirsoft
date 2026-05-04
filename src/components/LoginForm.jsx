@@ -50,10 +50,22 @@ export default function LoginForm({ onClose, onLoginSuccess }) {
       if (data && data.nickname) {
         setMensaje('✅ Acceso autorizado a CPA')
         
-        // Guardar información del usuario en localStorage
-        localStorage.setItem('currentUser', JSON.stringify(data))
+        // Guardar solo campos ligeros — excluir avatar_url (base64 grande)
+        const userLight = {
+          id: data.id,
+          nickname: data.nickname,
+          nombrecompleto: data.nombrecompleto,
+          tipo_jugador: data.tipo_jugador,
+          equipo: data.equipo,
+          team_id: data.team_id,
+          experience: data.experience,
+          assault_skill: data.assault_skill,
+          scout_skill: data.scout_skill,
+          rear_guard_skill: data.rear_guard_skill,
+        }
+        localStorage.setItem('currentUser', JSON.stringify(userLight))
         
-        onLoginSuccess(data)
+        onLoginSuccess(userLight)
         setTimeout(() => {
           onClose()
         }, 1500)

@@ -1,492 +1,429 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createTeamWithPlayers, createPlayer, getTeamsComplete, getPlayerByNickname } from '../services/supabaseService'
+import { updatePlayer, getPlayerByNickname, getTeamsComplete, createTeam } from '../services/supabaseService'
 
-// Función para obtener datos del usuario logueado del localStorage o contexto
 const getCurrentUser = () => {
-  // Esto debería obtenerse del contexto de autenticación o localStorage
-  // Por ahora, simulamos que viene del localStorage o props
-  const userData = localStorage.getItem('currentUser')
-  if (userData) {
-    return JSON.parse(userData)
-  }
-  
-  // Valor por defecto para testing (remover en producción)
-  return {
-    nickname: 'TestUser',
-    tipo_jugador: 'independiente' // Cambiar por 'jugador_equipo' o 'capitan_equipo' para probar
-  }
+  try {
+    const raw = localStorage.getItem('currentUser')
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
 }
 
-const defaultJugador = {
-  nombre: '',
-  sobrenombre: '',
-  contraseña: '',
-  tipo_jugador: 'Novato',
-  equipo: '',
-  habilidadAsalto: 50,
-  habilidadExplorador: 50,
-  habilidadRetaguardia: 50,
-  experiencia: 'Novato',
-  esLider: false,
-  esSegundo: false,
-  visible: true,
-  telefonojugador: '',
-  nombrecompleto: '',
-  zonadejuego: ''
+function AvatarField({ value, onChange }) {
+  const handleFile = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => onChange(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+  return (
+    <div>
+      <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Avatar</label>
+      <label className="cursor-pointer flex items-center gap-2 bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 hover:border-tactical-orange transition-colors text-sm w-fit">
+        {value
+          ? <img src={value} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-tactical-orange" />
+          : <span className="text-tactical-sand">Subir Avatar</span>
+        }
+        {value && <span className="text-green-400 text-xs">Cargado</span>}
+        <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </label>
+    </div>
+  )
 }
 
-const experiencias = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Veterano']
+function FormularioJugador({ datos, onChange }) {
+  const experiencias = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Veterano']
+  const inputCls = "w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-sm focus:outline-none focus:border-tactical-orange"
+  const inputStyle = { color: '#FFA500' }
+  return (
+    <div className="space-y-4">
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Nombre Completo</label>
+          <input
+            type="text"
+            value={datos.nombrecompleto}
+            onChange={e => onChange('nombrecompleto', e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="Nombre completo"
+          />
+        </div>
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Sobrenombre (Nick)</label>
+          <input
+            type="text"
+            value={datos.nickname}
+            onChange={e => onChange('nickname', e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="Nickname en el juego"
+          />
+        </div>
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Telefono</label>
+          <input
+            type="tel"
+            value={datos.telefono}
+            onChange={e => onChange('telefono', e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="Numero de telefono"
+          />
+        </div>
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Contrasena</label>
+          <input
+            type="text"
+            value={datos.contrasena}
+            readOnly
+            className={`${inputCls} opacity-60 cursor-not-allowed`}
+            style={inputStyle}
+            placeholder="Cargado desde la base de datos"
+          />
+        </div>
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Experiencia</label>
+          <select
+            value={datos.experiencia}
+            onChange={e => onChange('experiencia', e.target.value)}
+            className={inputCls}
+            style={inputStyle}
+          >
+            {experiencias.map(ex => <option key={ex} value={ex}>{ex}</option>)}
+          </select>
+        </div>
+      </div>
+      <AvatarField value={datos.avatar_url} onChange={v => onChange('avatar_url', v)} />
+      <div className="space-y-3 pt-2">
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">
+            Habilidad Asalto: <span className="text-tactical-orange font-bold">{datos.assault_skill}%</span>
+          </label>
+          <input type="range" min="0" max="100" value={datos.assault_skill}
+            onChange={e => onChange('assault_skill', Number(e.target.value))}
+            className="w-full accent-tactical-orange" />
+        </div>
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">
+            Habilidad Explorador: <span className="text-tactical-orange font-bold">{datos.scout_skill}%</span>
+          </label>
+          <input type="range" min="0" max="100" value={datos.scout_skill}
+            onChange={e => onChange('scout_skill', Number(e.target.value))}
+            className="w-full accent-tactical-orange" />
+        </div>
+        <div>
+          <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">
+            Habilidad Retaguardia: <span className="text-tactical-orange font-bold">{datos.rear_guard_skill}%</span>
+          </label>
+          <input type="range" min="0" max="100" value={datos.rear_guard_skill}
+            onChange={e => onChange('rear_guard_skill', Number(e.target.value))}
+            className="w-full accent-tactical-orange" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ContinuarRegistro() {
   const navigate = useNavigate()
-  const [currentUser] = useState(() => getCurrentUser()) // Inicializar con el usuario actual
-  const [equiposList, setEquiposList] = useState([])
-  const [selectedTeam, setSelectedTeam] = useState(null)
-  const [jugadorActual, setJugadorActual] = useState({ ...defaultJugador })
-  const [mensaje, setMensaje] = useState('')
-  
-  // Estados para registro de equipo (solo para capitán)
-  const [nombreEquipo, setNombreEquipo] = useState('')
-  const [logoEquipo, setLogoEquipo] = useState(null)
-  const [fotoEquipo, setFotoEquipo] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [mensaje, setMensaje] = useState({ texto: '', tipo: '' })
+  const [guardando, setGuardando] = useState(false)
+
+  const [jugador, setJugador] = useState({
+    id: '', nombrecompleto: '', nickname: '', contrasena: '', telefono: '',
+    experiencia: 'Novato', avatar_url: '',
+    assault_skill: 0, scout_skill: 0, rear_guard_skill: 0,
+  })
+
+  const [equipoSeleccionado, setEquipoSeleccionado] = useState({ id: '', name: '' })
+  const [listaEquipos, setListaEquipos] = useState([])
+  const [equipo, setEquipo] = useState({ nombre: '', logo: null, foto: null })
+
+  const setMsg = (texto, tipo = 'info') => setMensaje({ texto, tipo })
+  const cambiarJugador = (campo, valor) => setJugador(prev => ({ ...prev, [campo]: valor }))
 
   useEffect(() => {
-    // Cargar lista de equipos si es necesario
-    if (currentUser && currentUser.tipo_jugador === 'jugador_equipo') {
-      const fetchTeams = async () => {
-        const { data, error } = await getTeamsComplete()
-        if (data && !error) {
-          setEquiposList(data)
+    const cargar = async () => {
+      const user = getCurrentUser()
+      if (!user) { setLoading(false); return }
+      setCurrentUser(user)
+      const { data, error } = await getPlayerByNickname(user.nickname)
+      if (!error && data) {
+        const expList = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Veterano']
+        setJugador({
+          id: data.id,
+          nombrecompleto: data.nombrecompleto || '',
+          nickname: data.nickname || '',
+          contrasena: data.contrasena || '',
+          telefono: data.telefonojugador || '',
+          experiencia: expList[data.experience] || 'Novato',
+          avatar_url: data.avatar_url || '',
+          assault_skill: data.assault_skill || 0,
+          scout_skill: data.scout_skill || 0,
+          rear_guard_skill: data.rear_guard_skill || 0,
+        })
+        if (user.tipo_jugador === 'jugador_equipo') {
+          const { data: teams } = await getTeamsComplete()
+          setListaEquipos(teams || [])
+          if (data.team_id && teams) {
+            const team = teams.find(t => t.id === data.team_id)
+            if (team) setEquipoSeleccionado({ id: team.id, name: team.name })
+          }
         }
       }
-      fetchTeams()
+      setLoading(false)
     }
-  }, [currentUser])
+    cargar()
+  }, [])
 
-  // Efecto para cargar datos existentes del jugador
-  useEffect(() => {
-    const loadPlayerData = async () => {
-      if (currentUser && currentUser.nickname) {
-        const { data: playerData, error } = await getPlayerByNickname(currentUser.nickname)
-        
-        if (playerData && !error) {
-          // Pre-poblar el formulario con los datos existentes
-          setJugadorActual(prevState => ({
-            ...prevState,
-            nombre: playerData.nombre || '',
-            sobrenombre: playerData.nickname || '',
-            contraseña: '', // No pre-poblar la contraseña por seguridad
-            tipo_jugador: playerData.tipo_jugador || 'Novato',
-            equipo: playerData.equipo || '',
-            habilidadAsalto: playerData.assault_skill || 50,
-            habilidadExplorador: playerData.scout_skill || 50,
-            habilidadRetaguardia: playerData.rear_guard_skill || 50,
-            experiencia: playerData.tipo_jugador || 'Novato',
-            esLider: playerData.es_lider || false,
-            esSegundo: playerData.es_segundo || false,
-            visible: playerData.visible !== false,
-            telefonojugador: playerData.telefonojugador || '',
-            nombrecompleto: playerData.nombrecompleto || '',
-            zonadejuego: playerData.zonadejuego || ''
-          }))
-        }
-      }
-    }
-
-    loadPlayerData()
-  }, [currentUser])
-
-  const handleTeamSelection = (teamName) => {
-    const team = equiposList.find(t => t.name === teamName)
-    setSelectedTeam(team)
-  }
-
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+  const handleEquipoImagen = (campo, e) => {
+    const file = e.target.files[0]; if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => setLogoEquipo(ev.target.result)
+    reader.onload = (ev) => setEquipo(prev => ({ ...prev, [campo]: ev.target.result }))
     reader.readAsDataURL(file)
   }
 
-  const handleFotoEquipoUpload = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setFotoEquipo(ev.target.result)
-    reader.readAsDataURL(file)
+  const expList = ['Novato', 'Intermedio', 'Avanzado', 'Experto', 'Veterano']
+
+  const decidirRuta = () => {
+    const sinSkills = jugador.assault_skill === 0 &&
+      jugador.scout_skill === 0 &&
+      jugador.rear_guard_skill === 0 &&
+      expList.indexOf(jugador.experiencia) === 0
+    return sinSkills ? '/registro-equipo' : '/perfil'
   }
 
-  const handleAvatarUpload = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setJugadorActual(j => ({ ...j, avatar: ev.target.result }))
-    reader.readAsDataURL(file)
+  const guardarIndependiente = async () => {
+    if (!jugador.nombrecompleto.trim()) return setMsg('Nombre completo obligatorio.', 'error')
+    if (!jugador.nickname.trim()) return setMsg('Sobrenombre obligatorio.', 'error')
+    setGuardando(true); setMsg('Actualizando perfil...', 'info')
+    const { error } = await updatePlayer(jugador.id, {
+      nombrecompleto: jugador.nombrecompleto,
+      nickname: jugador.nickname,
+      telefonojugador: jugador.telefono || null,
+      experience: expList.indexOf(jugador.experiencia),
+      avatar_url: jugador.avatar_url || null,
+      assault_skill: jugador.assault_skill,
+      scout_skill: jugador.scout_skill,
+      rear_guard_skill: jugador.rear_guard_skill,
+    })
+    setGuardando(false)
+    if (error) return setMsg('Error: ' + error.message, 'error')
+    setMsg('Perfil actualizado correctamente.', 'ok')
+    setTimeout(() => navigate(decidirRuta()), 1500)
   }
 
-  const handleRegistrar = async () => {
-    if (!jugadorActual.nombrecompleto.trim() || !jugadorActual.contraseña.trim()) {
-      setMensaje('Por favor completa todos los campos obligatorios.')
-      return
+  const guardarJugadorEquipo = async () => {
+    if (!jugador.nombrecompleto.trim()) return setMsg('Nombre completo obligatorio.', 'error')
+    if (!jugador.nickname.trim()) return setMsg('Sobrenombre obligatorio.', 'error')
+    if (!equipoSeleccionado.id) return setMsg('Debes seleccionar un equipo.', 'error')
+    setGuardando(true); setMsg('Actualizando perfil...', 'info')
+    const { error } = await updatePlayer(jugador.id, {
+      team_id: equipoSeleccionado.id,
+      equipo: equipoSeleccionado.name,
+      nombrecompleto: jugador.nombrecompleto,
+      nickname: jugador.nickname,
+      telefonojugador: jugador.telefono || null,
+      experience: expList.indexOf(jugador.experiencia),
+      avatar_url: jugador.avatar_url || null,
+      assault_skill: jugador.assault_skill,
+      scout_skill: jugador.scout_skill,
+      rear_guard_skill: jugador.rear_guard_skill,
+    })
+    setGuardando(false)
+    if (error) return setMsg('Error: ' + error.message, 'error')
+    setMsg('Perfil actualizado correctamente.', 'ok')
+    setTimeout(() => navigate(decidirRuta()), 1500)
+  }
+
+  const guardarCapitan = async () => {
+    if (!equipo.nombre.trim()) return setMsg('Nombre del equipo obligatorio.', 'error')
+    if (!jugador.nombrecompleto.trim()) return setMsg('Nombre completo obligatorio.', 'error')
+    if (!jugador.nickname.trim()) return setMsg('Sobrenombre obligatorio.', 'error')
+    setGuardando(true); setMsg('Registrando equipo...', 'info')
+    const { data: newTeamData, error: teamError } = await createTeam({
+      name: equipo.nombre,
+      logo_url: equipo.logo || null,
+      team_photo_url: equipo.foto || null,
+      leader_id: jugador.id,
+    })
+    if (teamError) {
+      setGuardando(false)
+      const msg = teamError.message?.includes('duplicate') || teamError.message?.includes('unique')
+        ? 'Ya existe un equipo con ese nombre. Elige otro nombre.'
+        : 'Error creando equipo: ' + teamError.message
+      return setMsg(msg, 'error')
     }
-
-    setMensaje('🔄 Registrando...')
-
-    try {
-      if (currentUser.tipo_jugador === 'independiente') {
-        // Registro como jugador independiente
-        const { error } = await createPlayer({
-          nickname: jugadorActual.sobrenombre || jugadorActual.nombrecompleto,
-          contraseña: jugadorActual.contraseña,
-          tipo_jugador: jugadorActual.experiencia,
-          equipo: 'Independiente',
-          assault_skill: jugadorActual.habilidadAsalto,
-          scout_skill: jugadorActual.habilidadExplorador,
-          rear_guard_skill: jugadorActual.habilidadRetaguardia,
-          experience: experiencias.indexOf(jugadorActual.experiencia),
-          telefonojugador: jugadorActual.telefonojugador,
-          nombrecompleto: jugadorActual.nombrecompleto,
-          zonadejuego: jugadorActual.zonadejuego
-        })
-        
-        if (error) {
-          setMensaje(`❌ Error: ${error.message}`)
-          return
-        }
-        
-      } else if (currentUser.tipo_jugador === 'jugador_equipo') {
-        // Registro en equipo existente
-        if (!selectedTeam) {
-          setMensaje('Por favor selecciona un equipo.')
-          return
-        }
-        
-        const { error } = await createPlayer({
-          nickname: jugadorActual.sobrenombre || jugadorActual.nombrecompleto,
-          contraseña: jugadorActual.contraseña,
-          tipo_jugador: jugadorActual.experiencia,
-          equipo: selectedTeam.name,
-          assault_skill: jugadorActual.habilidadAsalto,
-          scout_skill: jugadorActual.habilidadExplorador,
-          rear_guard_skill: jugadorActual.habilidadRetaguardia,
-          experience: experiencias.indexOf(jugadorActual.experiencia),
-          team_id: selectedTeam.id,
-          telefonojugador: jugadorActual.telefonojugador,
-          nombrecompleto: jugadorActual.nombrecompleto,
-          zonadejuego: jugadorActual.zonadejuego
-        })
-        
-        if (error) {
-          setMensaje(`❌ Error: ${error.message}`)
-          return
-        }
-        
-      } else if (currentUser.tipo_jugador === 'capitan_equipo') {
-        // Registro como capitán de nuevo equipo
-        if (!nombreEquipo.trim()) {
-          setMensaje('Por favor ingresa el nombre del equipo.')
-          return
-        }
-        
-        const { error } = await createTeamWithPlayers({
-          teamData: {
-            name: nombreEquipo,
-            logo_url: logoEquipo,
-            team_photo_url: fotoEquipo,
-            is_public_forum: true
-          },
-          playersData: [{
-            ...jugadorActual,
-            esLider: true
-          }]
-        })
-        
-        if (error) {
-          setMensaje(`❌ Error: ${error.message}`)
-          return
-        }
-      }
-      
-      setMensaje('✅ Registro completado exitosamente!')
-      setTimeout(() => navigate('/'), 2000)
-      
-    } catch (error) {
-      console.error('Error en registro:', error)
-      setMensaje(`❌ Error inesperado: ${error.message}`)
+    const nuevoidequipo = newTeamData?.team?.id || newTeamData?.id
+    if (!nuevoidequipo) {
+      setGuardando(false)
+      return setMsg('Error: no se pudo obtener el ID del equipo creado.', 'error')
     }
+    const { error: playerError } = await updatePlayer(jugador.id, {
+      team_id: nuevoidequipo,
+      equipo: equipo.nombre,
+      nombrecompleto: jugador.nombrecompleto,
+      nickname: jugador.nickname,
+      telefonojugador: jugador.telefono || null,
+      experience: expList.indexOf(jugador.experiencia),
+      avatar_url: jugador.avatar_url || null,
+      assault_skill: jugador.assault_skill,
+      scout_skill: jugador.scout_skill,
+      rear_guard_skill: jugador.rear_guard_skill,
+    })
+    setGuardando(false)
+    if (playerError) return setMsg('Error actualizando perfil: ' + playerError.message, 'error')
+    setMsg('Equipo registrado y perfil actualizado.', 'ok')
+    setTimeout(() => navigate(decidirRuta()), 1500)
   }
 
-  if (!currentUser) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-cpa-dark flex items-center justify-center">
-        <div className="text-cpa-sand">Cargando...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-tactical-orange text-xl animate-pulse">Cargando datos...</div>
       </div>
     )
   }
 
-  const getTitleAndSubtitle = () => {
-    switch (currentUser.tipo_jugador) {
-      case 'independiente':
-        return {
-          title: 'REGISTRO DE JUGADOR',
-          subtitle: 'Regístrate como jugador independiente de Airsoft'
-        }
-      case 'jugador_equipo':
-        return {
-          title: 'REGISTRO DE JUGADOR',
-          subtitle: 'Busca tu equipo y Regístrate en CPA'
-        }
-      case 'capitan_equipo':
-        return {
-          title: 'REGISTRO DE EQUIPO',
-          subtitle: 'Regístrate como capitán y registra tu equipo de Airsoft'
-        }
-      default:
-        return {
-          title: 'CONTINUAR REGISTRO',
-          subtitle: 'Completa tu registro en CPA'
-        }
-    }
-  }
-
-  const { title, subtitle } = getTitleAndSubtitle()
-
-  return (
-    <div className="min-h-screen bg-cpa-dark py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-cpa-primary mb-2 font-tactical uppercase">
-            {title}
-          </h1>
-          <p className="text-cpa-sand text-lg">
-            {subtitle}
-          </p>
-        </div>
-
-        {/* Información del Equipo - Solo para jugador_equipo y capitan_equipo */}
-        {(currentUser.tipo_jugador === 'jugador_equipo' || currentUser.tipo_jugador === 'capitan_equipo') && (
-          <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6 mb-6">
-            <h2 className="text-tactical-orange font-bold text-lg uppercase mb-4">
-              INFORMACIÓN DEL EQUIPO {currentUser.tipo_jugador === 'jugador_equipo' ? '(Sólo consulta)' : ''}
-            </h2>
-            
-            {currentUser.tipo_jugador === 'jugador_equipo' ? (
-              // Para jugador que busca equipo existente
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-tactical-sand text-sm mb-2 uppercase">Seleccionar Equipo</label>
-                  <select
-                    onChange={(e) => handleTeamSelection(e.target.value)}
-                    className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange"
-                  >
-                    <option value="">Selecciona un equipo</option>
-                    {equiposList.map((team, index) => (
-                      <option key={index} value={team.name}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                {selectedTeam && (
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-tactical-sand text-sm mb-2 uppercase">Logo del Equipo</label>
-                      {selectedTeam.logo_url ? (
-                        <img src={selectedTeam.logo_url} alt="Logo" className="w-20 h-20 object-cover rounded border border-tactical-orange" />
-                      ) : (
-                        <div className="w-20 h-20 bg-tactical-gray rounded border border-tactical-olive flex items-center justify-center text-tactical-sand text-xs">
-                          Sin logo
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-tactical-sand text-sm mb-2 uppercase">Foto del Equipo</label>
-                      {selectedTeam.team_photo_url ? (
-                        <img src={selectedTeam.team_photo_url} alt="Foto" className="w-32 h-20 object-cover rounded border border-tactical-orange" />
-                      ) : (
-                        <div className="w-32 h-20 bg-tactical-gray rounded border border-tactical-olive flex items-center justify-center text-tactical-sand text-xs">
-                          Sin foto
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Para capitán que crea nuevo equipo
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-tactical-sand text-sm mb-2 uppercase">Nombre del Equipo *</label>
-                  <input
-                    type="text"
-                    value={nombreEquipo}
-                    onChange={(e) => setNombreEquipo(e.target.value)}
-                    className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange"
-                    placeholder="Nombre de tu equipo"
-                  />
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-tactical-sand text-sm mb-2 uppercase">Logo del Equipo</label>
-                    <label className="cursor-pointer flex items-center gap-3 bg-tactical-gray border border-tactical-olive rounded px-3 py-2 hover:border-tactical-orange transition-colors w-fit">
-                      <svg className="w-5 h-5 text-tactical-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <span className="text-tactical-sand text-sm">{logoEquipo ? 'Logo cargado ✓' : 'Subir Logo'}</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                    </label>
-                    {logoEquipo && (
-                      <img src={logoEquipo} alt="Logo" className="w-16 h-16 object-cover rounded-full border-2 border-tactical-orange mt-2" />
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-tactical-sand text-sm mb-2 uppercase">Foto del Equipo</label>
-                    <label className="cursor-pointer flex items-center gap-3 bg-tactical-gray border border-tactical-olive rounded px-3 py-2 hover:border-tactical-orange transition-colors w-fit">
-                      <svg className="w-5 h-5 text-tactical-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="text-tactical-sand text-sm">{fotoEquipo ? 'Foto cargada ✓' : 'Subir Foto de Equipo'}</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleFotoEquipoUpload} />
-                    </label>
-                    {fotoEquipo && (
-                      <img src={fotoEquipo} alt="Foto" className="w-24 h-16 object-cover rounded border border-tactical-orange mt-2" />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Formulario de Integrante */}
-        <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6 mb-6">
-          <h2 className="text-tactical-orange font-bold text-lg uppercase mb-4">
-            INTEGRANTE
-          </h2>
-          <h3 className="text-tactical-sand font-bold mb-4">Nuevo Integrante</h3>
-          
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Nombre Completo *</label>
-              <input
-                type="text"
-                value={jugadorActual.nombrecompleto}
-                onChange={e => setJugadorActual(j => ({ ...j, nombrecompleto: e.target.value }))}
-                className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand text-sm focus:outline-none focus:border-tactical-orange"
-                placeholder="Nombre completo del jugador"
-              />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Sobrenombre (Nick)</label>
-              <input
-                type="text"
-                value={jugadorActual.sobrenombre}
-                onChange={e => setJugadorActual(j => ({ ...j, sobrenombre: e.target.value }))}
-                className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand text-sm focus:outline-none focus:border-tactical-orange"
-                placeholder="Sobrenombre o apodo"
-              />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Teléfono</label>
-              <input
-                type="tel"
-                value={jugadorActual.telefonojugador}
-                onChange={e => setJugadorActual(j => ({ ...j, telefonojugador: e.target.value }))}
-                className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand text-sm focus:outline-none focus:border-tactical-orange"
-                placeholder="Número de teléfono"
-              />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Zona de Juego</label>
-              <input
-                type="text"
-                value={jugadorActual.zonadejuego}
-                onChange={e => setJugadorActual(j => ({ ...j, zonadejuego: e.target.value }))}
-                className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand text-sm focus:outline-none focus:border-tactical-orange"
-                placeholder="Zona preferida de juego"
-              />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Contraseña *</label>
-              <input
-                type="password"
-                value={jugadorActual.contraseña}
-                onChange={e => setJugadorActual(j => ({ ...j, contraseña: e.target.value }))}
-                className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand text-sm focus:outline-none focus:border-tactical-orange"
-                placeholder="Contraseña para acceso"
-              />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Experiencia</label>
-              <select
-                value={jugadorActual.experiencia}
-                onChange={e => setJugadorActual(j => ({ ...j, experiencia: e.target.value, tipo_jugador: e.target.value }))}
-                className="w-full bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 text-tactical-sand text-sm focus:outline-none focus:border-tactical-orange"
-              >
-                {experiencias.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">Avatar</label>
-              <label className="cursor-pointer flex items-center gap-2 bg-tactical-darkgreen border border-tactical-olive rounded px-3 py-2 hover:border-tactical-orange transition-colors text-sm">
-                <span className="text-tactical-sand">{jugadorActual.avatar ? 'Avatar cargado ✓' : 'Subir Avatar'}</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-              </label>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">⚔️ Habilidad Asalto: {jugadorActual.habilidadAsalto}%</label>
-              <input type="range" min="0" max="100" value={jugadorActual.habilidadAsalto}
-                onChange={e => setJugadorActual(j => ({ ...j, habilidadAsalto: Number(e.target.value) }))}
-                className="w-full accent-tactical-orange" />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">🔭 Habilidad Explorador: {jugadorActual.habilidadExplorador}%</label>
-              <input type="range" min="0" max="100" value={jugadorActual.habilidadExplorador}
-                onChange={e => setJugadorActual(j => ({ ...j, habilidadExplorador: Number(e.target.value) }))}
-                className="w-full accent-tactical-orange" />
-            </div>
-            <div>
-              <label className="block text-tactical-sand text-xs mb-1 uppercase">🛡️ Habilidad Retaguardia: {jugadorActual.habilidadRetaguardia}%</label>
-              <input type="range" min="0" max="100" value={jugadorActual.habilidadRetaguardia}
-                onChange={e => setJugadorActual(j => ({ ...j, habilidadRetaguardia: Number(e.target.value) }))}
-                className="w-full accent-tactical-orange" />
-            </div>
-          </div>
-        </div>
-
-        {/* Mensaje */}
-        {mensaje && (
-          <div className={`p-3 rounded-lg font-bold text-sm mb-4 ${
-            mensaje.includes('✅') 
-              ? 'bg-green-900 text-green-300 border border-green-700' 
-              : mensaje.includes('❌')
-              ? 'bg-red-900 text-red-300 border border-red-700'
-              : 'bg-yellow-900 text-yellow-300 border border-yellow-700'
-          }`}>
-            {mensaje}
-          </div>
-        )}
-
-        {/* Botón de registro */}
-        <div className="text-center">
-          <button
-            onClick={handleRegistrar}
-            className="bg-tactical-orange hover:bg-tactical-lightorange text-tactical-black font-bold px-8 py-3 rounded-lg text-lg uppercase transition-colors"
-          >
-            Registrar
-          </button>
+  if (!currentUser) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <div className="bg-red-900 border border-red-700 rounded-lg p-8">
+          <p className="text-red-300 text-xl font-bold mb-2">Acceso Denegado</p>
+          <p className="text-red-400">Debes iniciar sesion para acceder a esta seccion.</p>
         </div>
       </div>
+    )
+  }
+
+  const tipo = currentUser.tipo_jugador
+  const msgCls = {
+    ok: 'bg-green-900 text-green-300 border-green-700',
+    error: 'bg-red-900 text-red-300 border-red-700',
+    info: 'bg-blue-900 text-blue-300 border-blue-700',
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8">
+
+      {mensaje.texto && (
+        <div className={`mb-6 p-4 rounded-lg font-bold border ${msgCls[mensaje.tipo] || msgCls.info}`}>
+          {mensaje.texto}
+        </div>
+      )}
+
+      {tipo === 'independiente' && (
+        <div>
+          <h1 className="text-3xl font-bold text-tactical-orange uppercase tracking-wide mb-1">
+            Registro de Jugador
+          </h1>
+          <p className="text-tactical-sand mb-8">Registrate como jugador independiente de Airsoft</p>
+          <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6">
+            <h2 className="text-tactical-orange font-bold text-lg uppercase mb-1">Integrante</h2>
+            <p className="text-tactical-sand text-sm mb-4">Nuevo Integrante</p>
+            <FormularioJugador datos={jugador} onChange={cambiarJugador} />
+          </div>
+          <button onClick={guardarIndependiente} disabled={guardando}
+            className="mt-6 w-full bg-tactical-orange hover:bg-tactical-lightorange disabled:opacity-50 text-tactical-black font-bold py-4 rounded-lg uppercase tracking-wide text-lg transition-colors">
+            {guardando ? 'Guardando...' : 'Actualizar Jugador'}
+          </button>
+        </div>
+      )}
+
+      {tipo === 'jugador_equipo' && (
+        <div>
+          <h1 className="text-3xl font-bold text-tactical-orange uppercase tracking-wide mb-1">
+            Registro de Jugador
+          </h1>
+          <p className="text-tactical-sand mb-8">Busca tu equipo y Registrate en CPA</p>
+          <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6 mb-6">
+            <h2 className="text-tactical-orange font-bold text-lg uppercase mb-4">Informacion del Equipo</h2>
+            <label className="block text-tactical-sand text-xs mb-2 uppercase tracking-wide">Nombre del Equipo</label>
+            <select
+              value={equipoSeleccionado.name}
+              onChange={e => {
+                const team = listaEquipos.find(t => t.name === e.target.value)
+                setEquipoSeleccionado(team ? { id: team.id, name: team.name } : { id: '', name: '' })
+              }}
+              className="w-full bg-tactical-gray border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange"
+            >
+              <option value="">Selecciona un equipo</option>
+              {listaEquipos.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          </div>
+          <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6">
+            <h2 className="text-tactical-orange font-bold text-lg uppercase mb-1">Integrante</h2>
+            <p className="text-tactical-sand text-sm mb-4">Nuevo Integrante</p>
+            <FormularioJugador datos={jugador} onChange={cambiarJugador} />
+          </div>
+          <button onClick={guardarJugadorEquipo} disabled={guardando}
+            className="mt-6 w-full bg-tactical-orange hover:bg-tactical-lightorange disabled:opacity-50 text-tactical-black font-bold py-4 rounded-lg uppercase tracking-wide text-lg transition-colors">
+            {guardando ? 'Guardando...' : 'Actualizar Jugador'}
+          </button>
+        </div>
+      )}
+
+      {tipo === 'capitan_equipo' && (
+        <div>
+          <h1 className="text-3xl font-bold text-tactical-orange uppercase tracking-wide mb-1">
+            Registro de Equipo
+          </h1>
+          <p className="text-tactical-sand mb-8">Registrate como capitan y registra tu equipo de Airsoft</p>
+          <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6 mb-6">
+            <h2 className="text-tactical-orange font-bold text-lg uppercase mb-4">Informacion del Equipo</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Nombre del Equipo</label>
+                <input type="text" value={equipo.nombre}
+                  onChange={e => setEquipo(p => ({ ...p, nombre: e.target.value }))}
+                  className="w-full bg-tactical-gray border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange"
+                  placeholder="Nombre del equipo" />
+              </div>
+              <div>
+                <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Logo del Equipo</label>
+                <label className="cursor-pointer flex items-center gap-2 bg-tactical-gray border border-tactical-olive rounded px-3 py-2 hover:border-tactical-orange transition-colors text-sm">
+                  {equipo.logo
+                    ? <img src={equipo.logo} alt="logo" className="w-8 h-8 rounded-full object-cover border border-tactical-orange" />
+                    : <span className="text-tactical-sand">Subir Logo</span>}
+                  {equipo.logo && <span className="text-green-400 text-xs">Cargado</span>}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handleEquipoImagen('logo', e)} />
+                </label>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Foto del Equipo</label>
+                <label className="cursor-pointer flex items-center gap-2 bg-tactical-gray border border-tactical-olive rounded px-3 py-2 hover:border-tactical-orange transition-colors text-sm w-fit">
+                  {equipo.foto
+                    ? <img src={equipo.foto} alt="foto" className="w-16 h-10 rounded object-cover border border-tactical-orange" />
+                    : <span className="text-tactical-sand">Subir Foto del Equipo</span>}
+                  {equipo.foto && <span className="text-green-400 text-xs">Cargado</span>}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handleEquipoImagen('foto', e)} />
+                </label>
+              </div>
+            </div>
+          </div>
+          <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6">
+            <h2 className="text-tactical-orange font-bold text-lg uppercase mb-1">Integrante</h2>
+            <p className="text-tactical-sand text-sm mb-4">Nuevo Integrante</p>
+            <FormularioJugador datos={jugador} onChange={cambiarJugador} />
+          </div>
+          <button onClick={guardarCapitan} disabled={guardando}
+            className="mt-6 w-full bg-tactical-orange hover:bg-tactical-lightorange disabled:opacity-50 text-tactical-black font-bold py-4 rounded-lg uppercase tracking-wide text-lg transition-colors">
+            {guardando ? 'Guardando...' : 'Actualizar Equipo'}
+          </button>
+        </div>
+      )}
+
+      {tipo !== 'independiente' && tipo !== 'jugador_equipo' && tipo !== 'capitan_equipo' && (
+        <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-6 text-center">
+          <p className="text-yellow-300 font-bold">Tipo de jugador no reconocido: {tipo}</p>
+          <p className="text-yellow-400 text-sm mt-2">Contacta al administrador para corregir tu perfil.</p>
+        </div>
+      )}
+
     </div>
   )
 }

@@ -24,16 +24,15 @@ export async function createTeam({ name, logo_url = null, team_photo_url = null,
 
   if (teamError) return { data: null, error: teamError }
 
-  // Crear foro asociado automáticamente
+  // Crear foro asociado automáticamente (upsert para evitar duplicados)
   const { data: forum, error: forumError } = await supabase
     .from('team_forums')
-    .insert([{ team_id: team.id, is_public: is_public_forum }])
+    .upsert([{ team_id: team.id, is_public: is_public_forum }], { onConflict: 'team_id' })
     .select()
     .single()
 
   if (forumError) {
-    // Intentamos eliminar el equipo si no se creó el foro (opcional)
-  console.error('[supabaseService] Error creando foro:', forumError)
+    console.error('[supabaseService] Error creando foro:', forumError)
     return { data: null, error: forumError }
   }
 
@@ -179,10 +178,10 @@ export async function updateTeam(id, patch) {
   return { data, error }
 }
 
-export async function createGame({ created_by, team_id = null, title, date = null, game_mode = null, status = 'draft' }) {
+export async function createGame({ created_by, team_id = null, title, date = null, game_mode = null, status = 'draft', locacioncoordenadas = null, locacionclima = null }) {
   const { data, error } = await supabase
     .from('games')
-    .insert([{ created_by, team_id, title, date, game_mode, status }])
+    .insert([{ created_by, team_id, title, date, game_mode, status, locacioncoordenadas, locacionclima }])
     .select()
     .single()
 

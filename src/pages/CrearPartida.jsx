@@ -23,6 +23,8 @@ export default function CrearPartida() {
     mision5: '', mision5Estado: 'Pendiente',
     puntuacion: '',
     estado: 'activa',
+    locacioncoordenadas: '',
+    locacionclima: '',
   })
 
   useEffect(() => {
@@ -53,7 +55,9 @@ export default function CrearPartida() {
         title: form.titulo,
         date: form.fecha,
         game_mode: form.dinamica,
-        status: form.estado || 'activa'
+        status: form.estado || 'activa',
+        locacioncoordenadas: form.locacioncoordenadas || null,
+        locacionclima: form.locacionclima || null,
       })
 
       if (gameError || !gameData) {
@@ -134,6 +138,32 @@ export default function CrearPartida() {
             <input type="text" value={form.puntuacion} onChange={e => setField('puntuacion', e.target.value)}
               className="w-full bg-tactical-gray border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange"
               placeholder="Ej: 1000 pts, TBD" />
+          </div>
+        </div>
+      </div>
+
+      {/* Ubicacion */}
+      <div className="bg-tactical-darkgreen border border-tactical-olive rounded-lg p-6 mb-6">
+        <h2 className="text-tactical-orange font-bold text-lg uppercase mb-4">📍 Ubicación</h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Coordenadas / Link de ubicación</label>
+            <input
+              type="text"
+              value={form.locacioncoordenadas}
+              onChange={e => setField('locacioncoordenadas', e.target.value)}
+              className="w-full bg-tactical-gray border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange"
+              placeholder="Ej: 19.4326,-99.1332  o  https://maps.google.com/?q=..." />
+            <p className="text-tactical-sand text-xs mt-1 opacity-60">Puedes pegar coordenadas GPS o un enlace de Google Maps / Apple Maps</p>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-tactical-sand text-xs mb-1 uppercase tracking-wide">Condiciones climáticas y características del terreno</label>
+            <textarea
+              value={form.locacionclima}
+              onChange={e => setField('locacionclima', e.target.value)}
+              rows={3}
+              placeholder="Ej: Zona boscosa con pendientes, clima cálido y soleado, terreno irregular con vegetación densa..."
+              className="w-full bg-tactical-gray border border-tactical-olive rounded px-3 py-2 text-tactical-sand focus:outline-none focus:border-tactical-orange resize-none" />
           </div>
         </div>
       </div>

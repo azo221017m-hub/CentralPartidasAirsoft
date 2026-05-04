@@ -1,60 +1,70 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import LoginForm from './LoginForm'
 import LogoOficial from './LogoOficial'
+
+const readUser = () => {
+  try { return JSON.parse(localStorage.getItem('currentUser') || 'null') } catch { return null }
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [authenticated, setAuthenticated] = useState(false)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(readUser)
+  const [dropPartidas, setDropPartidas] = useState(false)
+  const [mobilePartidas, setMobilePartidas] = useState(false)
+  const authenticated = !!user
   const location = useLocation()
+
+  // Sincronizar usuario desde localStorage cuando cambie (post-login o post-registro)
+  useEffect(() => {
+    const sync = () => setUser(readUser())
+    window.addEventListener('storage', sync)
+    // También sincronizar en cada cambio de ruta
+    sync()
+    return () => window.removeEventListener('storage', sync)
+  }, [location.pathname])
 
   // Links base que siempre se muestran
   const publicLinks = [
     { to: '/', label: 'Inicio' },
   ]
 
-  // Links que solo se muestran cuando está autenticado
+  // Links privados con perfil + partidas
   const privateLinks = [
-    { to: '/crear-partida', label: 'Crear Partida' },
+    { to: '/perfil', label: 'Mi Perfil' },
     { to: '/registro-partida', label: 'Registrar en Partida' },
   ]
 
-  // Función para verificar si debe mostrar "Continuar Registro"
-  const shouldShowContinueRegistration = () => {
-    if (!authenticated || !user) return false
-    
-    // Mostrar si las habilidades y experiencia están en 0
-    return user.assault_skill === 0 && 
-           user.scout_skill === 0 && 
-           user.rear_guard_skill === 0 && 
-           user.experience === 0
-  }
+  // Submenus del dropdown PARTIDAS
+  const subPartidas = [
+    { to: '/crear-partida', label: 'Evento' },
+    { to: '/partidas/entrenamiento', label: 'Entrenamiento' },
+    { to: '/partidas/eliminacion', label: 'Eliminacion' },
+    { to: '/partidas/mision', label: 'Mision' },
+  ]
 
-  // Links dinámicos según el estado del usuario
-  const conditionalLinks = shouldShowContinueRegistration() ? 
-    [{ to: '/registro-equipo', label: 'Continuar Registro' }] : []
+  // Si skills y experiencia son todos 0 → debe completar registro
+  const registroIncompleto = !user ? false :
+    (user.assault_skill === 0 &&
+     user.scout_skill === 0 &&
+     user.rear_guard_skill === 0 &&
+     (user.experience === 0 || user.experience === undefined))
 
-  // Si "Continuar Registro" es visible, ocultar "Crear Partida" y "Registrar en Partida"
-  const availablePrivateLinks = shouldShowContinueRegistration() ? [] : privateLinks
-
-  // Combinar links según el estado de autenticación
-  const links = authenticated ? 
-    [...publicLinks, ...conditionalLinks, ...availablePrivateLinks] : publicLinks
+  const links = authenticated
+    ? registroIncompleto
+      ? [...publicLinks, { to: '/registro-equipo', label: 'Continuar Registro' }]
+      : [...publicLinks, ...privateLinks]
+    : publicLinks
 
   const handleLoginSuccess = (userData) => {
-    setAuthenticated(true)
     setUser(userData)
-    setShowLogin(false) // Cerrar modal de login
+    setShowLogin(false)
   }
 
   const handleLogout = () => {
-    setAuthenticated(false)
     setUser(null)
-    // Limpiar localStorage
     localStorage.removeItem('currentUser')
-    // Redirigir a home
     window.location.href = '/'
   }
 
@@ -101,6 +111,43 @@ export default function Navbar() {
                 </span>
               </Link>
             ))}
+
+            {/* Dropdown PARTIDAS (solo autenticado y registro completo) */}
+            {authenticated && !registroIncompleto && (
+              <div className="relative" onMouseLeave={() => setDropPartidas(false)}>
+                <button
+                  onClick={() => setDropPartidas(v => !v)}
+                  className={`px-4 py-2 font-tactical text-sm font-semibold uppercase tracking-wide transition-all duration-300 rounded-lg border flex items-center gap-2 ${
+                    dropPartidas
+                      ? 'bg-cpa-primary text-cpa-white border-cpa-sand shadow-lg glow-cpa'
+                      : 'border-transparent text-cpa-white hover:text-cpa-primary hover:bg-cpa-gray hover:border-cpa-primary/30'
+                  }`}
+                >
+                  Partidas
+                  <svg className={`w-3 h-3 transition-transform duration-200 ${dropPartidas ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {dropPartidas && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-cpa-dark border border-cpa-primary/40 rounded-lg shadow-2xl z-50 overflow-hidden">
+                    {subPartidas.map(sub => (
+                      <Link
+                        key={sub.to}
+                        to={sub.to}
+                        onClick={() => setDropPartidas(false)}
+                        className={`block px-4 py-3 font-tactical text-sm uppercase tracking-wide transition-all duration-200 ${
+                          location.pathname === sub.to
+                            ? 'bg-cpa-primary text-cpa-white'
+                            : 'text-cpa-sand hover:bg-cpa-gray hover:text-cpa-primary'
+                        }`}
+                      >
+                        {sub.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Separador */}
             <div className="w-px h-8 bg-cpa-primary/30 mx-4"></div>
@@ -112,7 +159,7 @@ export default function Navbar() {
                   <div className="flex items-center gap-2 bg-cpa-gray px-3 py-2 rounded-lg border border-cpa-primary/30">
                     <div className="w-2 h-2 bg-cpa-primary rounded-full animate-pulse"></div>
                     <span className="font-tactical text-cpa-sand text-sm font-medium">
-                      {user?.contact_name}
+                      {user?.nickname || user?.contact_name}
                     </span>
                   </div>
                   <button
@@ -170,6 +217,39 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
+              {/* Dropdown PARTIDAS movil */}
+              {authenticated && !registroIncompleto && (
+                <div>
+                  <button
+                    onClick={() => setMobilePartidas(v => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 font-tactical font-semibold uppercase tracking-wide rounded-lg text-ops-text-light hover:text-ops-primary hover:bg-ops-gray transition-all duration-300"
+                  >
+                    Partidas
+                    <svg className={`w-4 h-4 transition-transform duration-200 ${mobilePartidas ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {mobilePartidas && (
+                    <div className="mt-1 ml-4 border-l-2 border-cpa-primary/40 pl-4 space-y-1">
+                      {subPartidas.map(sub => (
+                        <Link
+                          key={sub.to}
+                          to={sub.to}
+                          onClick={() => { setOpen(false); setMobilePartidas(false) }}
+                          className={`block px-3 py-2 font-tactical text-sm uppercase tracking-wide rounded-lg transition-all duration-200 ${
+                            location.pathname === sub.to
+                              ? 'bg-ops-primary text-ops-dark'
+                              : 'text-ops-text-light hover:text-ops-primary hover:bg-ops-gray'
+                          }`}
+                        >
+                          {sub.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Separador móvil */}
               <div className="border-t border-ops-primary/30 pt-4 mt-4">
@@ -178,7 +258,7 @@ export default function Navbar() {
                     <div className="flex items-center gap-3 px-4 py-3 bg-ops-gray rounded-lg border border-ops-primary/30">
                       <div className="w-3 h-3 bg-ops-primary rounded-full animate-pulse"></div>
                       <span className="font-tactical text-ops-text-light font-medium">
-                        {user?.contact_name}
+                        {user?.nickname || user?.contact_name}
                       </span>
                     </div>
                     <button

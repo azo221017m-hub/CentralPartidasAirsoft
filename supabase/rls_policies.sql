@@ -43,23 +43,28 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON players TO authenticated;
 -- ============================================================
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
+-- Borrar TODAS las políticas existentes (incluyendo viejas con p.user_id)
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT policyname FROM pg_policies WHERE tablename = 'teams' LOOP
+    EXECUTE 'DROP POLICY IF EXISTS "' || r.policyname || '" ON teams';
+  END LOOP;
+END $$;
+
 -- Lectura pública
-DROP POLICY IF EXISTS "teams_select_public" ON teams;
 CREATE POLICY "teams_select_public" ON teams
   FOR SELECT USING (true);
 
 -- Insertar: permitido (capitanes registran su equipo)
-DROP POLICY IF EXISTS "teams_insert_public" ON teams;
 CREATE POLICY "teams_insert_public" ON teams
   FOR INSERT WITH CHECK (true);
 
 -- Actualizar: permitido
-DROP POLICY IF EXISTS "teams_update_public" ON teams;
 CREATE POLICY "teams_update_public" ON teams
   FOR UPDATE USING (true);
 
 -- Eliminar: bloqueado
-DROP POLICY IF EXISTS "teams_delete_blocked" ON teams;
 CREATE POLICY "teams_delete_blocked" ON teams
   FOR DELETE USING (false);
 
@@ -72,17 +77,23 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON teams TO authenticated;
 -- ============================================================
 ALTER TABLE team_forums ENABLE ROW LEVEL SECURITY;
 
+-- Borrar TODAS las políticas existentes de team_forums
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT policyname FROM pg_policies WHERE tablename = 'team_forums' LOOP
+    EXECUTE 'DROP POLICY IF EXISTS "' || r.policyname || '" ON team_forums';
+  END LOOP;
+END $$;
+
 -- Solo foros públicos visibles para anon
-DROP POLICY IF EXISTS "forums_select_public" ON team_forums;
 CREATE POLICY "forums_select_public" ON team_forums
   FOR SELECT USING (is_public = true);
 
 -- Insertar/Actualizar permitido (se crea automáticamente al crear equipo)
-DROP POLICY IF EXISTS "forums_insert_public" ON team_forums;
 CREATE POLICY "forums_insert_public" ON team_forums
   FOR INSERT WITH CHECK (true);
 
-DROP POLICY IF EXISTS "forums_update_public" ON team_forums;
 CREATE POLICY "forums_update_public" ON team_forums
   FOR UPDATE USING (true);
 
@@ -213,23 +224,6 @@ CREATE POLICY "participants_update_public" ON game_participants
 
 GRANT SELECT, INSERT, UPDATE ON game_participants TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON game_participants TO authenticated;
-
-
--- ============================================================
--- 9. TABLA: access_requests (ya tiene RLS del schema.sql)
--- ============================================================
--- Asegurar que existe la política de lectura pública para login
-DROP POLICY IF EXISTS "Allow public read access" ON access_requests;
-CREATE POLICY "Allow public read access" ON access_requests
-  FOR SELECT USING (true);
-
--- Permitir insertar nuevas solicitudes
-DROP POLICY IF EXISTS "access_requests_insert_public" ON access_requests;
-CREATE POLICY "access_requests_insert_public" ON access_requests
-  FOR INSERT WITH CHECK (true);
-
-GRANT SELECT, INSERT ON access_requests TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON access_requests TO authenticated;
 
 
 -- ============================================================
